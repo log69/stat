@@ -126,9 +126,13 @@ def print_stat
 				# select data for disk (MB / s)
 				d_disk.push((y[10].to_f.abs + y[11].to_f.abs) / 1024 / 1024)
 				# select data for net (Mbit / s)
-				d_net.push((y[12].to_f.abs + y[13].to_f.abs) * 8 / 1024 / 1024)
+				nn = y[12].to_f.abs + y[13].to_f.abs
+				mm = 0
+				mm = y[14].to_f.abs + y[15].to_f.abs if y[14] and y[15]
+				nn -= mm
+				d_net.push(nn * 8 / 1024 / 1024)
 				# other interface
-				d_net2.push((y[14].to_f.abs + y[15].to_f.abs) * 8 / 1024 / 1024) if y[14] and y[15]
+				d_net2.push(mm * 8 / 1024 / 1024) if y[14] and y[15]
 			end
 			i += 1
 			break if i >= lines
