@@ -10,6 +10,8 @@
 # All rights reserved.
 # license: GPLv3
 
+# usage: open http://127.0.0.1/stat
+
 # # httpd config
 # ne /etc/httpd/conf.d/stat.conf
 
