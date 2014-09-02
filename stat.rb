@@ -8,7 +8,7 @@
 
 # Copyright (C) 2012-2014 Andras Horvath <mail@log69.com>
 # All rights reserved.
-# license: GPLv3
+# license: GPLv3+
 
 # usage: open http://127.0.0.1/stat
 
