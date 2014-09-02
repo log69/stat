@@ -57,6 +57,7 @@
 # ------------------------
 # --- global constants ---
 # ------------------------
+C_curve_smooth = 1
 C_script = "/stat"
 # base dir for www
 C_wwwdir = "/var/www/html"
@@ -235,6 +236,7 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 		mycolor = "##{color}"
 		# use smooth curve if possible
 		s2 = "smooth csplines"
+		s2 = "" if not C_curve_smooth
 
 		# set y range for graph (always refer to zero value)
 		mydata2 = mydata.collect{|x|x.to_f}
