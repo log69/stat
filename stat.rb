@@ -236,7 +236,7 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 		mycolor = "##{color}"
 		# use smooth curve if possible
 		s2 = "smooth csplines"
-		s2 = "" if not C_curve_smooth
+		s2 = "" if C_curve_smooth == 0
 
 		# set y range for graph (always refer to zero value)
 		mydata2 = mydata.collect{|x|x.to_f}
