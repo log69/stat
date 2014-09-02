@@ -3,10 +3,12 @@
 
 # info: generate server statistics on a html page using a dstat output
 # depends: http server, ruby, gnuplot, imagemagick
+# Fedora / SL / CentOS setup:
 # yum install dstat httpd ruby gnuplot ImageMagick
 
 # Copyright (C) 2012-2014 Andras Horvath <mail@log69.com>
 # All rights reserved.
+# license: GPLv3
 
 # # httpd config
 # ne /etc/httpd/conf.d/stat.conf
