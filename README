@@ -1,4 +1,4 @@
-Server load statistics with graphical output in a browser
+Server load statistics for Linux systems with graphical output in a browser
 
 info: generate server statistics on a html page using a dstat output
 depends: http server, ruby, gnuplot, imagemagick
