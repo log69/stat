@@ -213,6 +213,7 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 	# so it might give better performance
 	mycsv  = "#{C_tempdir}/#{myfile}.csv"
 	mycsv2 = "#{C_tempdir}/#{myfile}2.csv"
+	mycsv3 = "#{C_tempdir}/#{myfile}3.csv"
 	myout  = "#{C_tempdir}/#{myfile}.ps"
 	# output image goes to its final place at once
 	myfilepath  = "#{C_wwwdir}/#{C_imagesdir}/#{myfile}.#{myext}"
@@ -326,7 +327,19 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 		else
 			mytype = "postscript size #{cwidth}, #{cheight} font 'Helvetica,#{cfont}'"
 		end
-		s  = "#{C_command_gnuplot} -e \"set terminal #{mytype}; set yrange [#{y_min}:#{y_max}]; "
+		s  = "#{C_command_gnuplot} -e \""
+		s += "set terminal #{mytype}; "
+
+		# scale up data on y axis for smooth curves if needed
+		if not mydata_max and C_curve_smooth == 1
+			s += "set table '#{mycsv3}'; "
+			s += "plot '#{mycsv}' title '' #{s2}; "
+			s += "unset table; "
+
+		else
+			s += "set yrange [#{y_min}:#{y_max}]; "
+		end
+
 
 		# rotate labels for some of the dates
 		flag_rotate = "";
@@ -339,7 +352,7 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 		# and a new line would be needed, but a new line cannot be inserted in the gnuplot command
 		# so I rather run the system call 2 times - first check the version,
 		# and then feed it with the right commands
-		gnuplot_version = `#{C_command_gnuplot} --version`.scan(/[0-9]\.[0-9]/)[0]
+		#gnuplot_version = `#{C_command_gnuplot} --version`.scan(/[0-9]\.[0-9]/)[0]
 		# xtics label must be rotated by the edge of the label and not the center
 		# see: http://sourceforge.net/p/gnuplot/bugs/1198/
 #		if gnuplot_version < "4.6"
@@ -371,7 +384,12 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 		s += "title '' with lines lw #{lw1} lt 0 lc rgb '#a0a0a0' "
 
 		# draw data
-		s += ", '#{mycsv}' title '' #{s2} with lines lw #{lw2} lt 1 lc rgb '#{mycolor}' "
+		# scale up data on y axis for smooth curves if needed
+		if not mydata_max and C_curve_smooth == 1
+			s += ", '#{mycsv3}' using 1:2 title '' #{s2} with lines lw #{lw2} lt 1 lc rgb '#{mycolor}' "
+		else
+			s += ", '#{mycsv}' title '' #{s2} with lines lw #{lw2} lt 1 lc rgb '#{mycolor}' "
+		end
 
 		# output to dev null
 #		s += "\" 1>/dev/null 2>/dev/null"
@@ -404,6 +422,7 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 	# delete .csv and .ps files if any
 	File.delete(mycsv)  rescue nil
 	File.delete(mycsv2) rescue nil
+	File.delete(mycsv3) rescue nil
 	if myext != "svg"
 		File.delete(myout)  rescue nil
 	end
