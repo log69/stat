@@ -96,7 +96,7 @@ def print_stat
 	# stat requested?
 	s = ENV["REQUEST_URI"][C_script.size..-1]
 
-	puts "<font color='##{C_color_yellow1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit): "
+	puts "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit): "
 	puts "<a href='#{C_script}/week'>week</a> "
 	puts "<a href='#{C_script}/day'>day</a> "
 	puts "<a href='#{C_script}/hour'>hour</a> "
@@ -164,9 +164,9 @@ def print_stat
 		# print stat images
 		cscale = 0.84
 		link = "<a href='#{C_script}#{s}'>"
-		myfilepath = create_stat_image_in_cache(d_cpu.reverse, "cpu", d_cpu_max, cscale, C_color_stat1)
+		myfilepath = create_stat_image_in_cache(d_cpu.reverse, "cpu", d_cpu_max, cscale, C_color_blk)
 		puts "#{link}<img src='#{myfilepath}' alt='stat cpu'></a>"
-		myfilepath = create_stat_image_in_cache(d_mem.reverse, "mem", d_mem_max, cscale, C_color_stat2)
+		myfilepath = create_stat_image_in_cache(d_mem.reverse, "mem", d_mem_max, cscale, C_color_stat1)
 		puts "#{link}<img src='#{myfilepath}' alt='stat mem'></a>"
 		myfilepath = create_stat_image_in_cache(d_disk.reverse, "disk", d_disk_min, cscale, C_color_err)
 		puts "#{link}<img src='#{myfilepath}' alt='stat disk'></a>"
