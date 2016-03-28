@@ -6,7 +6,7 @@
 # Fedora / SL / CentOS setup:
 # yum install dstat httpd ruby gnuplot ImageMagick
 
-# Copyright (C) 2012-2014 Andras Horvath <mail@log69.com>
+# Copyright (C) Andras Horvath <mail@log69.com>
 # All rights reserved.
 # license: GPLv3+
 
@@ -325,7 +325,7 @@ def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 
 		if myext == "svg"
 			mytype = "svg size #{cwidth}, #{cheight} fsize #{cfont}"
 		else
-			mytype = "postscript size #{cwidth}, #{cheight} font 'Helvetica,#{cfont}'"
+			mytype = "postscript color size #{cwidth}, #{cheight} font 'Helvetica,#{cfont}'"
 		end
 		s  = "#{C_command_gnuplot} -e \""
 		s += "set terminal #{mytype}; "
