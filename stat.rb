@@ -235,7 +235,7 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 		array_date = array_date_avg
 	end
 
-	max = (max and array.max < max) ? max : array.max
+	max = (max and array.max.ceil < max) ? max : array.max.ceil
 	max = 0 if max < 0
 	min = array.min
 	min = 0 if min > 0
