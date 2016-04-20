@@ -2,7 +2,7 @@
 # encoding: UTF-8
 
 # info: generate server statistics on a html page using a dstat output
-# depends: http server, ruby
+# depends: dstat, http server, ruby
 # Fedora / SL / CentOS setup:
 # yum install dstat httpd ruby
 
