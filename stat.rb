@@ -57,14 +57,7 @@
 # ------------------------
 # --- global constants ---
 # ------------------------
-C_curve_smooth = 1
 C_script = "/stat"
-# base dir for www
-C_wwwdir = "/var/www/html"
-# base dir for images
-C_imagesdir = "images"
-# temp dir
-C_tempdir = "/tmp"
 # default colors
 C_color_yellow1	= "c0c000" # yellow
 C_color_yellow2	= "faffc0" # light yellow
