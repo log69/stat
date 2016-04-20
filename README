@@ -1,12 +1,13 @@
 Server load statistics for Linux systems with graphical output in a browser
 
 info: generate server statistics on a html page using a dstat output
-depends: http server, ruby, gnuplot, imagemagick
+depends: dstat, http server, ruby
 
-Copyright (C) 2012-2014 Andras Horvath <mail@log69.com>
+Copyright (C) Andras Horvath <mail@log69.com>
 All rights reserved.
 license: GPLv3
 
 usage: open http://127.0.0.1/stat
 
 For documentation, see the source code.
+
