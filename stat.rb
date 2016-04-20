@@ -2,9 +2,9 @@
 # encoding: UTF-8
 
 # info: generate server statistics on a html page using a dstat output
-# depends: http server, ruby, gnuplot, imagemagick
+# depends: http server, ruby
 # Fedora / SL / CentOS setup:
-# yum install dstat httpd ruby gnuplot ImageMagick
+# yum install dstat httpd ruby
 
 # Copyright (C) Andras Horvath <mail@log69.com>
 # All rights reserved.
@@ -65,10 +65,6 @@ C_wwwdir = "/var/www/html"
 C_imagesdir = "images"
 # temp dir
 C_tempdir = "/tmp"
-# paths of shell commands
-C_command_echo     = "/bin/echo"
-C_command_gnuplot  = "/usr/bin/gnuplot"
-C_command_convert  = "/usr/bin/convert"
 # default colors
 C_color_yellow1	= "c0c000" # yellow
 C_color_yellow2	= "faffc0" # light yellow
@@ -103,9 +99,11 @@ def print_stat
 	puts "</font><br><br>"
 
 	# determine the lines of data to use for the chosen time interval
-	lines = 60
-	lines = 60 * 24 * 7 if s == "/week"
-	lines = 60 * 24     if s == "/day"
+	lines = 60; div = 1
+	(lines = 60 * 24; div = 60) if s == "/day"
+	(lines = 60 * 24 * 7; div = 60 * 24) if s == "/week"
+	# date value for x axis
+	date = (-lines..1).to_a.map{|x| x / div}
 
 	if File.file? "/var/www/html/images/dstat.csv"
 		# read the end of file
@@ -162,276 +160,140 @@ def print_stat
 		d_net_min2 = 1 if d_net2.max.to_f < 1
 
 		# print stat images
-		cscale = 0.84
 		link = "<a href='#{C_script}#{s}'>"
-		myfilepath = create_stat_image_in_cache(d_cpu.reverse, "cpu", d_cpu_max, cscale, C_color_blk)
-		puts "#{link}<img src='#{myfilepath}' alt='stat cpu'></a>"
-		myfilepath = create_stat_image_in_cache(d_mem.reverse, "mem", d_mem_max, cscale, C_color_stat1)
-		puts "#{link}<img src='#{myfilepath}' alt='stat mem'></a>"
-		myfilepath = create_stat_image_in_cache(d_disk.reverse, "disk", d_disk_min, cscale, C_color_err)
-		puts "#{link}<img src='#{myfilepath}' alt='stat disk'></a>"
-		myfilepath = create_stat_image_in_cache(d_net.reverse, "net", d_net_min, cscale, C_color_gray3)
-		puts "#{link}<img src='#{myfilepath}' alt='stat net'></a><br>"
+		print_chart(C_color_blk,   d_cpu.reverse,  date, d_cpu_max)
+		print_chart(C_color_stat1, d_mem.reverse,  date, d_mem_max)
+		print_chart(C_color_err,   d_disk.reverse, date, d_disk_min)
+		print_chart(C_color_gray3, d_net.reverse,  date, d_net_min)
 
 		# is there output for another interface too?
 		if d_net2.size > 0
-			myfilepath = create_stat_image_in_cache(d_net2.reverse, "net2", d_net_min2, cscale, C_color_gray3)
-			puts "#{link}<img src='#{myfilepath}' alt='stat net2'></a><br>"
+			print_chart(C_color_gray3, d_net2.reverse, date, d_net_min2)
 		end
 	end
 end
 
 
-# create chart image on the disk from data using gnuplot to create a ps, then imagemagick to convert ps to png or svg
-# files will be:
-# - a .csv file with raw numeric data (gets deleted after process)
-# - a .ps  file with generated chart in it (gets deleted after process)
-# - a .png file with the final converted chart in it
-# - or only an .svg file
-# return a string of path to this file
-# use the filename param if cache is not required (login = nil)
-def create_stat_image_in_cache(mydata, filename = "", mydata_max = nil, scale = 1, color = "808080")
-	# fail if no data
-	if mydata.size < 1 then return nil end
-	# make it 2 if 1 data only
-	if mydata.size == 1 then mydata.push(mydata[0]) end
+# -----------------
+# --- svg chart ---
+# -----------------
+# print an svg chart from an array of numbers
+def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id = 0)
+	# check array values
+	return if array.size < 1
+	array = [array[0], array[0]] if array.size == 1
+	array_date = [array_date[0], array_date[0]] if array_date and array_date.size == 1
 
-	# set image format
-	myext = "png"
-#	myext = "svg"
+	# frame dimensions in pixels
+	w = 600
+	h = 200
+	# space for ticks and text
+	mtexty = 200
+	mtextx = 50
+	# canvas margin around chart outside
+	m1 = 10
+	# margin inside
+	m2 = 20
+	# full height value for chart line
+	h2 = h - m2 * 2
+	# tick length
+	mt = 15
+	# minimum text space
+	tspace = 30
 
-	# cache allowed?
-	myfile = nil
-	myfile = "stat_#{filename}"
-
-	# set my filenames
-#	mycsv  = "#{C_wwwdir}/#{C_imagesdir}/#{myfile}.csv"
-#	mycsv2 = "#{C_wwwdir}/#{C_imagesdir}/#{myfile}2.csv"
-#	myout  = "#{C_wwwdir}/#{C_imagesdir}/#{myfile}.ps"
-
-	# rather convert the files in the temp dir because it is in memory
-	# so it might give better performance
-	mycsv  = "#{C_tempdir}/#{myfile}.csv"
-	mycsv2 = "#{C_tempdir}/#{myfile}2.csv"
-	mycsv3 = "#{C_tempdir}/#{myfile}3.csv"
-	myout  = "#{C_tempdir}/#{myfile}.ps"
-	# output image goes to its final place at once
-	myfilepath  = "#{C_wwwdir}/#{C_imagesdir}/#{myfile}.#{myext}"
-
-#	# reorder data for .csv
-#	d = ""
-#	if not mydata_date
-#		# 1 data column
-#		d = mydata.join("\n")
-#	else
-#		# 2 columns separated by tabs: data / date
-#		d = mydata.zip(mydata_date).collect{|x| "#{x[1]}\t#{x[0]}\n"}.join
-#	end
-
-	# create .csv file with raw numeric data in it
-	f = File.open(mycsv, "w"); f.write(mydata.join("\n")); f.close
-
-	# create .ps chart from .csv with gnuplot
-	if File.file? mycsv
-		# choose my line color
-		mycolor = "##{color}"
-		# use smooth curve if possible
-		s2 = "smooth csplines"
-		s2 = "" if C_curve_smooth == 0
-
-		# set y range for graph (always refer to zero value)
-		mydata2 = mydata.collect{|x|x.to_f}
-		m_min = mydata2.min
-		m_max = nil
-		# choose the provided max value if any
-		# instead of the top value in the data
-		if mydata_max
-			m_max = mydata_max
-		else
-			m_max = mydata2.max
-		end
-		m_diff = (m_max - m_min).abs
-		y_min = m_min
-		y_max = m_max
-		if y_min > 0 then y_min = 0 end
-		if y_max < 0 then y_max = 0 end
-		y_diff = y_max - y_min
-		y_min = y_min - y_diff * 0.2
-		y_max = y_max + y_diff * 0.2
-
-		# smooth curve needs at least 3 data, so switch to straight line if less than 3
-		if mydata.size < 3 then s2 = "" end
-
-#		# generate chart
-#		s  = "#{C_command_gnuplot} -e \"set terminal svg size 600, 200; set yrange [#{y_min}:#{y_max}]; set output '"
-#		s += "#{myout}"
-#		s += "'; plot 0 title '' with lines lw 1 pt 4 lt rgb '#f0f0f0'; plot '"
-#		s += "#{mycsv}"
-#		s += "' title '' #{s2} with lines lw 3 lt rgb '"
-#		s += "#{mycolor}"
-#		s += "'\" 1>/dev/null 2>/dev/null"
-#		system(s)
-#
-#		if File.file? myout
-#			s = "#{C_command_convert} -antialias '#{myout}' '#{myfilepath}' 1>/dev/null 2>/dev/null"
-#			system(s)
-#		end
-
-		# if data contains only zeros, then gnuplot draws nothing
-		# solve this by manually set a specific y axis range
-		if mydata2.min == 0 and mydata2.max == 0
-			y_min = -1
-			y_max = +1
-		end
-
-		# no need to run these system() calls in sandbox, because gnuplot gets clean numbers in csv file
-		# and convert get sane input too
-
-		# set chart height to proportional for all of the charts
-		# this is needed because of the different height of the rotated dates
-		# (dates with y, m, days, without days and only years)
-		# statflag means which chart is being generated:
-		#  0 - no dates
-		#  1 - daily
-		#  2 - monthly
-		#  3 - yearly
-		cwidth = 9.0
-		cheight = 3.0
-		cfont = 14.0
-		# width correction for svg output
-		cwidth *= 66 and cheight *= 66 if myext == "svg"
-
-		# set line thickness
-		# zero line
-		lw1 = 4.0
-		lw1 = 2.0 if myext == "svg"
-		# data line
-		lw2 = 5.0
-		lw2 = 2.0 if myext == "svg"
-
-		# generate chart
-		mytype = ""
-
-		# set max size of chart image in scale ratio, 1 means no change
-		if scale
-			cwidth  *= scale
-			cheight *= scale
-			cfont   *= scale
-			lw1     *= scale
-			lw2     *= scale
-		end
-
-		# set chart output type and geometry
-		if myext == "svg"
-			mytype = "svg size #{cwidth}, #{cheight} fsize #{cfont}"
-		else
-			mytype = "postscript color size #{cwidth}, #{cheight} font 'Helvetica,#{cfont}'"
-		end
-		s  = "#{C_command_gnuplot} -e \""
-		s += "set terminal #{mytype}; "
-
-		# scale up data on y axis for smooth curves if needed
-		if not mydata_max and C_curve_smooth == 1
-			s += "set table '#{mycsv3}'; "
-			s += "plot '#{mycsv}' title '' #{s2}; "
-			s += "unset table; "
-
-		else
-			s += "set yrange [#{y_min}:#{y_max}]; "
-		end
+	# IE browsers have to have exact px values for width and height
+	# otherwise they cannot do anything with % and the svg will not scale
+	# and will only be shown in an arbitrary small scale
+	# javascript code to scale up svg:
+	# document.getElementById("chart0").style.transformOrigin = "0 0";
+	# document.getElementById("chart0").style.transform = "scale(1.5)";
+	# the svg dimensions do not scale along when applying transform.scale on it
+	# no width and height tricks help from javascript
+	# but anyway it doesn't matter, because on page reload, I readjust it from server side, see below
+	f = 1
+	st = "transform-origin: 0 0; -ms-transform-origin: 0 0; -webkit-transform-origin: 0 0; transform: scale(#{f}); -ms-transform: scale(#{f}); -webkit-transform: scale(#{f});"
+	puts "<svg style='#{st}' id='chart#{id.to_i}' width='#{(w + 2*m1 + mtexty) * f}px' height='#{(h + 2*m1 + mtextx) * f}px' preserveAspectRatio='xMinYMin slice'>"
 
 
-		# rotate labels for some of the dates
-		flag_rotate = "";
-		# check gnuplot version and apply rotate parameter based on that
-		# the "right" variable was introduced only above version 4.6
-		# the other problem here is, that under 4.6 with older versions,
-		# there is no possibility to close the if into a block with multiple command
-		# just like with "{}" above 4.6,
-		# and so all the rest of the line will belong to the conditional statement
-		# and a new line would be needed, but a new line cannot be inserted in the gnuplot command
-		# so I rather run the system call 2 times - first check the version,
-		# and then feed it with the right commands
-		#gnuplot_version = `#{C_command_gnuplot} --version`.scan(/[0-9]\.[0-9]/)[0]
-		# xtics label must be rotated by the edge of the label and not the center
-		# see: http://sourceforge.net/p/gnuplot/bugs/1198/
-#		if gnuplot_version < "4.6"
-#			flag_rotate = "rotate" if mydata_date
-#		else
-#			flag_rotate = "rotate right" if mydata_date
-#		end
+	# create an array of average values of a fixed amount
+	# to put a limit to the number of svg lines drawn on the screen
+	# and so save up traffic and make it faster if possible
+	s1 = array.size
+	s2 = w / 2
+	array_avg      = []
+	array_date_avg = []
+	if s1 > s2
+		(0..s2-1).each {|i|
+			i1 = s1 * i / s2
+			i2 = s1 * (i+1) / s2 - 1
+			div = i2 - i1 + 1
+			y = array[i1..i2].inject(:+) / div
+			array_avg.push(y)
+			array_date_avg.push(array_date[i1]) if array_date
+		}
+		array = array_avg
+		array_date = array_date_avg
+	end
 
-#		s += "set xtics #{flag_rotate}; set xdata time; set timefmt '%Y-%m-%d'; set format x '%Y-%m-%d'; "
-		s += "set border lc rgb '##{C_color_blk}'; set xtics textcolor rgb '##{C_color_blk}' #{flag_rotate}; set ytics textcolor rgb '##{C_color_blk}'; set xrange []; set autoscale x; "
+	max = (max and array.max < max) ? max : array.max
+	max = 0 if max < 0
+	min = array.min
+	min = 0 if min > 0
+	diff = max - min
+	diff = 1 if diff == 0
 
-#		s += "set border lc rgb '##{C_color_blk}'; set xtics textcolor rgb '##{C_color_blk}'; set ytics textcolor rgb '##{C_color_blk}'; set xrange []; set autoscale x; "
-#		s += "if (GPVAL_VERSION < 4.6) set xtics rotate; else set xtics rotate right; \\\\\n " if mydata_date
+	st = "stroke-width: 2; stroke-linecap: round;"
 
-		if myext == "svg"
-			s += "set output '#{myfilepath}'; "
-		else
-			s += "set output '#{myout}'; "
-		end
+	# draw zero line if any
+	y2 = (0 - min) * h2 / diff
+	y = h + m1 - m2 - y2
+	puts "<line style='#{st} stroke: ##{C_color_gray2}; stroke-dasharray: 10, 10;' x1='#{0 + m1 + m2}' y1='#{y}' x2='#{w + m1}' y2='#{y}'></line>"
 
-		# draw zero line with dashed line
-		s += "plot "
-#		if mydata_date
-#			# draw zero line with date labels
-#			s += "'#{mycsv2}' u 2:xtic(1) "
-#		else
-			s += "0 "
-#		end
-		s += "title '' with lines lw #{lw1} lt 0 lc rgb '#a0a0a0' "
+	# draw chart
+	if array.size > 1
+		x1, y1, x2, y2 = 0, 0, 0, 0
+		c = 0
+		t = 0
+		array.each_with_index {|y, i|
+			x2 = (w - m2*2) * i / (array.size - 1) + m2
+			y2 = (y - min) * h2 / diff
+			x1, y1 = x2, y2 if i == 0
+			puts "<line style='#{st} stroke: ##{color};' x1='#{x1 + m1}' y1='#{h + m1 - y1 - m2}' x2='#{x2 + m1}' y2='#{h + m1 - y2 - m2}'></line>" if c > 0
 
-		# draw data
-		# scale up data on y axis for smooth curves if needed
-		if not mydata_max and C_curve_smooth == 1
-			s += ", '#{mycsv3}' using 1:2 title '' #{s2} with lines lw #{lw2} lt 1 lc rgb '#{mycolor}' "
-		else
-			s += ", '#{mycsv}' title '' #{s2} with lines lw #{lw2} lt 1 lc rgb '#{mycolor}' "
-		end
-
-		# output to dev null
-#		s += "\" 1>/dev/null 2>/dev/null"
-		s += "\""
-
-		# test code to print error message of gnuplot
-#		t = Time.now.utc.to_i
-#		t_out = "#{C_wwwdir}/images/gnuplot_stdout_#{t}"
-#		t_err = "#{C_wwwdir}/images/gnuplot_stderr_#{t}"
-#		s += "\" 1>#{t_out} 2>#{t_err}"
-
-#p s
-		system(s)
-
-		# test code to print error message of gnuplot
-#		gp_out = File::read(t_out).to_s
-#		gp_err = File::read(t_err).to_s
-#		puts "<hr>#{gp_out}<hr>#{gp_err}<hr>"
-
-		# convert .ps to file type with convert (imagemagick)
-		if myext != "svg"
-			if File.file? myout
-				# make it without the -trim parameter, so the charts will fit nice
-				s = "#{C_command_convert} -set colorspace RGB -depth 8 -rotate 90 '#{myout}' '#{myfilepath}' 1>/dev/null 2>/dev/null"
-				system(s)
+			# draw ticks and text
+			# space between texts are enough?
+			if x2 - x1 + t > tspace or i == 0
+				mytext = (array_date.to_a.size > i) ? array_date[i] : y
+				puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{x2 + m1}' y1='#{h + m1}' x2='#{x2 + m1}' y2='#{h + m1 + mt}'></line>"
+				puts "<text style='font-size: #{tspace/2}px;' x='#{x2 + m1 + mt*1.5}' y='#{h + m1}' fill='##{C_color_blk}' transform='rotate(90 #{x2 + m1},#{h + m1})'>#{mytext}</text>"
+				t = 0
 			end
-		end
+			t += x2 - x1
+
+			x1, y1 = x2, y2
+			c += 1
+		}
 	end
 
-	# delete .csv and .ps files if any
-	File.delete(mycsv)  rescue nil
-	File.delete(mycsv2) rescue nil
-	File.delete(mycsv3) rescue nil
-	if myext != "svg"
-		File.delete(myout)  rescue nil
-	end
+	# draw ticks and text
+	y2 = (max - min) * h2 / diff
+	y  = h + m1 - y2 - m2
+	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
+	t = max
+	puts "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
+	y2 = (min - min) * h2 / diff
+	y  = h + m1 - y2 - m2
+	t = min
+	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
+	puts "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
 
-	# return the path of the file if it was successfully created
-	if File.file? myfilepath then return "/images/#{myfile}.#{myext}" end
+	# draw frame
+	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{0 + m1}' x2='#{w + m1}' y2='#{h + m1}'></line>"
+	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{0 + m1}' y1='#{h + m1}' x2='#{w + m1}' y2='#{h + m1}'></line>"
 
-	# return nil on failure
-	return nil
+	puts "Sorry, your browser does not support the technology needed to show you the chart"
+	puts "</svg>"
+	puts "<br><br>"
 end
 
 # print html header
