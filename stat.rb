@@ -2,62 +2,32 @@
 # encoding: UTF-8
 
 # info: generate server statistics on a html page using a dstat output
-# depends: dstat, http server, ruby
-# Fedora / SL / CentOS setup:
-# yum install dstat httpd ruby
+# depends: dstat, ruby
+# apt-get install dstat ruby
+# yum install dstat ruby
 
 # Copyright (C) Andras Horvath <mail@log69.com>
 # All rights reserved.
 # license: GPLv3+
 
-# usage: open http://127.0.0.1/stat
+# usage: open http://127.0.0.1:8888
 
-# # httpd config
-# ne /etc/httpd/conf.d/stat.conf
-
-# # name of server
-# ServerName domain.com
-# # avoid info leak about OS and version
-# ServerTokens Prod
-# ServerSignature Off
-# # forbid access of specific files
-# <Location /images/dstat.csv>
-# Deny from All
-# </Location>
-# # disable directory listing by removing "Indexes" from "Options"
-# <Directory /var/www/cgi-bin/>
-# Options None
-# </Directory>
-# # script alias to hide script name and path
-# ScriptAlias /stat "/var/www/cgi-bin/stat.rb"
-
-# # special setups for images directory
-# cd /var/www/html; mkdir images; chown apache:andras images; chmod 0750 images
-# chcon -t public_content_rw_t images
-# semanage fcontext -a -t public_content_rw_t images
-# setsebool -P allow_httpd_sys_script_anon_write on
-
-# # secure my script and make it not word readable
-# cd /var/www
-# chmod 0750 cgi-bin
-# chown root:apache cgi-bin
-
-# chkconfig httpd on
-# service httpd restart
-
-# # cron setup as root
+# setup in user's crontab:
 # crontab -e
-# # create dstat log for server statistics
-# # dstat -cmdn -N total,ppp0 for specific network interfaces
-# * * * * * (CMD="dstat -cmdn --output /var/www/html/images/dstat.csv 60"; ps aux | grep -v grep | grep "$CMD" || $CMD &) 1>/dev/null
-# # limit log size for 2 weeks
-# 11 2 * * * (DATA=$(tail -n20160 /var/www/html/images/dstat.csv); echo -e "$DATA" > /var/www/html/images/dstat.csv) 1>/dev/null
+# @reboot stat.rb &
+
+
+$SAFE = 1
+
+require "socket"
 
 
 # ------------------------
 # --- global constants ---
 # ------------------------
-C_script = "/stat"
+C_port = 8888
+C_dstat = "dstat.csv"
+
 # default colors
 C_color_yellow1	= "c0c000" # yellow
 C_color_yellow2	= "faffc0" # light yellow
@@ -77,94 +47,98 @@ C_color_stat2	= "c0c000" # stat2
 C_color_border	= "b0b0b0" # color of border line in table
 
 
+# print a system stat
 def print_stat
-	# print a system stat
-	# also, print a random value in the link, so I can jump back to the previous results
-	# in the history of the browser
+	res = ""
 
-	# stat requested?
-	s = ENV["REQUEST_URI"][C_script.size..-1]
+	# start collecting data from dstat
+	Thread.new { `pgrep dstat || dstat -cmdn --noheaders --output #{C_dstat} 60` }
 
-	puts "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit): "
-	puts "<a href='#{C_script}/week'>week</a> "
-	puts "<a href='#{C_script}/day'>day</a> "
-	puts "<a href='#{C_script}/hour'>hour</a> "
-	puts "</font><br><br>"
+	# print info
+	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit)</font><br>"
 
-	# determine the lines of data to use for the chosen time interval
-	lines = 60; div = 1
-	(lines = 60 * 24; div = 60) if s == "/day"
-	(lines = 60 * 24 * 7; div = 60 * 24) if s == "/week"
-	# date value for x axis
-	date = (-lines..1).to_a.map{|x| x / div}
+	[[60, 1, "last hour"], [60 * 24, 60, "last day"], [60 * 24 * 7, 60 * 24, "last week"]].each do |x|
 
-	if File.file? "/var/www/html/images/dstat.csv"
-		# read the end of file
-		f = File.open("/var/www/html/images/dstat.csv", "r")
-		d = f.readlines
-		f.close
-		# read data
-		d_cpu  = []
-		d_mem  = []
-		d_disk = []
-		d_net  = []
-		d_net2 = []
-		i = 0
-		d.reverse.each do |x|
-			# check if the line is data or just part of the dstat header
-			# if it start with a number, then it should be data
-			if x.to_s.match(/^[0-9]/)
-				y = x.split(",")
-				# select data for cpu (%)
-				d_cpu.push((100 - y[2].to_f).abs)
-				# select data for mem (MB)
-				d_mem.push(y[6].to_f.abs / 1024 / 1024)
-				# select data for disk (MB / s)
-				d_disk.push((y[10].to_f.abs + y[11].to_f.abs) / 1024 / 1024)
-				# select data for net (Mbit / s)
-				nn = y[12].to_f.abs + y[13].to_f.abs
-				mm = 0
-				mm = y[14].to_f.abs + y[15].to_f.abs if y[14] and y[15]
-				nn -= mm
-				d_net.push(nn * 8 / 1024 / 1024)
-				# other interface
-				d_net2.push(mm * 8 / 1024 / 1024) if y[14] and y[15]
+		# determine the lines of data to use for the chosen time interval
+		lines = x[0]
+		div = x[1]
+		text = x[2]
+		# date value for x axis
+		date = (-lines..1).to_a.map{|x| x / div}
+
+		res << "<h2>#{text}</h2>"
+
+		if File.file? C_dstat
+			# read the end of file
+			f = File.open(C_dstat, "r")
+			d = f.readlines
+			f.close
+			# read data
+			d_cpu  = []
+			d_mem  = []
+			d_disk = []
+			d_net  = []
+			d_net2 = []
+			i = 0
+			d.reverse.each do |x|
+				# check if the line is data or just part of the dstat header
+				# if it start with a number, then it should be data
+				if x.to_s.match(/^[0-9]/)
+					y = x.split(",")
+					# select data for cpu (%)
+					d_cpu.push((100 - y[2].to_f).abs)
+					# select data for mem (MB)
+					d_mem.push(y[6].to_f.abs / 1024 / 1024)
+					# select data for disk (MB / s)
+					d_disk.push((y[10].to_f.abs + y[11].to_f.abs) / 1024 / 1024)
+					# select data for net (Mbit / s)
+					nn = y[12].to_f.abs + y[13].to_f.abs
+					mm = 0
+					mm = y[14].to_f.abs + y[15].to_f.abs if y[14] and y[15]
+					nn -= mm
+					d_net.push(nn * 8 / 1024 / 1024)
+					# other interface
+					d_net2.push(mm * 8 / 1024 / 1024) if y[14] and y[15]
+				end
+				i += 1
+				break if i >= lines
 			end
-			i += 1
-			break if i >= lines
+
+			# set minimum and maximum values for y axis
+			# cpu
+			d_cpu_max = 100
+			# memory
+			f = File.open("/proc/meminfo", "r")
+			d2 = f.read
+			f.close
+			d3 = d2.split("\n")[0].match(/[0-9]+/).to_a.join.to_i / 1024
+			d_mem_max = nil
+			d_mem_max = d3 if d3 > 0
+			# disk and net
+			d_disk_min = nil
+			d_disk_min = 1 if d_disk.max < 1
+			d_net_min = nil
+			d_net_min = 1 if d_net.max < 1
+			d_net_min2 = nil
+			d_net_min2 = 1 if d_net2.max.to_f < 1
+
+			# print stat images
+			res << "<a href='http://127.0.0.1:#{C_port}'>"
+			res << print_chart(C_color_blk,   d_cpu.reverse,  date, d_cpu_max)
+			res << print_chart(C_color_stat1, d_mem.reverse,  date, d_mem_max)
+			res << print_chart(C_color_err,   d_disk.reverse, date, d_disk_min)
+			res << print_chart(C_color_gray3, d_net.reverse,  date, d_net_min)
+
+			# is there output for another interface too?
+			if d_net2.size > 0
+				res << print_chart(C_color_gray3, d_net2.reverse, date, d_net_min2)
+			end
+			res << "</a><br><hr>"
+
 		end
-
-		# set minimum and maximum values for y axis
-		# cpu
-		d_cpu_max = 100
-		# memory
-		f = File.open("/proc/meminfo", "r")
-		d2 = f.read
-		f.close
-		d3 = d2.split("\n")[0].match(/[0-9]+/).to_a.join.to_i / 1024
-		d_mem_max = nil
-		d_mem_max = d3 if d3 > 0
-		# disk and net
-		d_disk_min = nil
-		d_disk_min = 1 if d_disk.max < 1
-		d_net_min = nil
-		d_net_min = 1 if d_net.max < 1
-		d_net_min2 = nil
-		d_net_min2 = 1 if d_net2.max.to_f < 1
-
-		# print stat images
-		puts "<a href='#{C_script}#{s}'>"
-		print_chart(C_color_blk,   d_cpu.reverse,  date, d_cpu_max)
-		print_chart(C_color_stat1, d_mem.reverse,  date, d_mem_max)
-		print_chart(C_color_err,   d_disk.reverse, date, d_disk_min)
-		print_chart(C_color_gray3, d_net.reverse,  date, d_net_min)
-
-		# is there output for another interface too?
-		if d_net2.size > 0
-			print_chart(C_color_gray3, d_net2.reverse, date, d_net_min2)
-		end
-		puts "</a>"
 	end
+
+	return res
 end
 
 
@@ -173,6 +147,8 @@ end
 # -----------------
 # print an svg chart from an array of numbers
 def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id = 0)
+	res = ""
+
 	# check array values
 	return if array.size < 1
 	array = [array[0], array[0]] if array.size == 1
@@ -206,7 +182,7 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 	# but anyway it doesn't matter, because on page reload, I readjust it from server side, see below
 	f = 1
 	st = "transform-origin: 0 0; -ms-transform-origin: 0 0; -webkit-transform-origin: 0 0; transform: scale(#{f}); -ms-transform: scale(#{f}); -webkit-transform: scale(#{f});"
-	puts "<svg style='#{st}' id='chart#{id.to_i}' width='#{(w + 2*m1 + mtexty) * f}px' height='#{(h + 2*m1 + mtextx) * f}px' preserveAspectRatio='xMinYMin slice'>"
+	res << "<svg style='#{st}' id='chart#{id.to_i}' width='#{(w + 2*m1 + mtexty) * f}px' height='#{(h + 2*m1 + mtextx) * f}px' preserveAspectRatio='xMinYMin slice'>"
 
 
 	# create an array of average values of a fixed amount
@@ -241,7 +217,7 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 	# draw zero line if any
 	y2 = (0 - min) * h2 / diff
 	y = h + m1 - m2 - y2
-	puts "<line style='#{st} stroke: ##{C_color_gray2}; stroke-dasharray: 10, 10;' x1='#{0 + m1 + m2}' y1='#{y}' x2='#{w + m1}' y2='#{y}'></line>"
+	res << "<line style='#{st} stroke: ##{C_color_gray2}; stroke-dasharray: 10, 10;' x1='#{0 + m1 + m2}' y1='#{y}' x2='#{w + m1}' y2='#{y}'></line>"
 
 	# draw chart
 	if array.size > 1
@@ -252,14 +228,14 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 			x2 = (w - m2*2) * i / (array.size - 1) + m2
 			y2 = (y - min) * h2 / diff
 			x1, y1 = x2, y2 if i == 0
-			puts "<line style='#{st} stroke: ##{color};' x1='#{x1 + m1}' y1='#{h + m1 - y1 - m2}' x2='#{x2 + m1}' y2='#{h + m1 - y2 - m2}'></line>" if c > 0
+			res << "<line style='#{st} stroke: ##{color};' x1='#{x1 + m1}' y1='#{h + m1 - y1 - m2}' x2='#{x2 + m1}' y2='#{h + m1 - y2 - m2}'></line>" if c > 0
 
 			# draw ticks and text
 			# space between texts are enough?
 			if x2 - x1 + t > tspace or i == 0
 				mytext = (array_date.to_a.size > i) ? array_date[i] : y
-				puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{x2 + m1}' y1='#{h + m1}' x2='#{x2 + m1}' y2='#{h + m1 + mt}'></line>"
-				puts "<text style='font-size: #{tspace/2}px;' x='#{x2 + m1 + mt*1.5}' y='#{h + m1}' fill='##{C_color_blk}' transform='rotate(90 #{x2 + m1},#{h + m1})'>#{mytext}</text>"
+				res << "<line style='#{st} stroke: ##{C_color_blk};' x1='#{x2 + m1}' y1='#{h + m1}' x2='#{x2 + m1}' y2='#{h + m1 + mt}'></line>"
+				res << "<text style='font-size: #{tspace/2}px;' x='#{x2 + m1 + mt*1.5}' y='#{h + m1}' fill='##{C_color_blk}' transform='rotate(90 #{x2 + m1},#{h + m1})'>#{mytext}</text>"
 				t = 0
 			end
 			t += x2 - x1
@@ -272,37 +248,37 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 	# draw ticks and text
 	y2 = (max - min) * h2 / diff
 	y  = h + m1 - y2 - m2
-	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
+	res << "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
 	t = max
-	puts "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
+	res << "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
 	y2 = (min - min) * h2 / diff
 	y  = h + m1 - y2 - m2
 	t = min
-	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
-	puts "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
+	res << "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
+	res << "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
 
 	# draw frame
-	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{0 + m1}' x2='#{w + m1}' y2='#{h + m1}'></line>"
-	puts "<line style='#{st} stroke: ##{C_color_blk};' x1='#{0 + m1}' y1='#{h + m1}' x2='#{w + m1}' y2='#{h + m1}'></line>"
+	res << "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{0 + m1}' x2='#{w + m1}' y2='#{h + m1}'></line>"
+	res << "<line style='#{st} stroke: ##{C_color_blk};' x1='#{0 + m1}' y1='#{h + m1}' x2='#{w + m1}' y2='#{h + m1}'></line>"
 
-	puts "Sorry, your browser does not support the technology needed to show you the chart"
-	puts "</svg>"
-	puts "<br><br>"
+	res << "Sorry, your browser does not support the technology needed to show you the chart"
+	res << "</svg>"
+	res << "<br><br>"
+
+	return res
 end
 
 # print html header
 def print_header
-	puts "Content-Type: text/html"
-	puts
-	puts "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' 'http://www.w3.org/TR/html4/loose.dtd'>"
-	puts "<html><head>"
-	puts "<meta name='viewport' content='width=device-width'>"
-	puts "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>"
-	puts "<title>stat</title></head><body bgcolor='#ffffff' text='##{C_color_blk}' link='##{C_color_gray3}' vlink='##{C_color_gray3}' alink='##{C_color_gray3}'>"
+	"""<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' 'http://www.w3.org/TR/html4/loose.dtd'>
+	<html><head>
+	<meta name='viewport' content='width=device-width'>
+	<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+	<title>stat</title></head><body bgcolor='#ffffff' text='##{C_color_blk}' link='##{C_color_gray3}' vlink='##{C_color_gray3}' alink='##{C_color_gray3}'>"""
 end
 
 def print_end
-	puts "</body></html>"
+	"</body></html>"
 end
 
 
@@ -311,7 +287,18 @@ end
 # ------------
 # --- main ---
 # ------------
+server = TCPServer.new C_port
+loop do
+	socket = server.accept
+#	request = socket.gets
 
-print_header
-print_stat
-print_end
+	response = print_header + print_stat + print_end
+
+	socket.print "HTTP/1.1 200 OK\r\n" +
+		"Content-Type: text/html\r\n" +
+		"Content-Length: #{response.bytesize}\r\n" +
+		"Connection: close\r\n\r\n"
+
+	socket.print response
+	socket.close
+end
