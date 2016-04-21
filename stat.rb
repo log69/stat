@@ -57,14 +57,14 @@ def print_stat
 	# print info
 	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit)</font><br>"
 
-	[[60, 1, "last hour"], [60 * 24, 60, "last day"], [60 * 24 * 7, 60 * 24, "last week"]].each do |x|
+	[[60, 1, "last hour", "m"], [60 * 24, 60, "last day", "h"], [60 * 24 * 7, 60 * 24, "last week", "d"]].each do |x|
 
 		# determine the lines of data to use for the chosen time interval
 		lines = x[0]
 		div = x[1]
 		text = x[2]
 		# date value for x axis
-		date = (-lines+1..0).to_a.map{|x| x / div}
+		date = (-lines+1..0).to_a.map{|y| "#{y / div} #{x[3]}"}
 
 		res << "<h2>#{text}</h2>"
 
@@ -156,10 +156,10 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 
 	# frame dimensions in pixels
 	w = 600
-	h = 200
+	h = 190
 	# space for ticks and text
 	mtexty = 200
-	mtextx = 50
+	mtextx = 70
 	# canvas margin around chart outside
 	m1 = 10
 	# margin inside
