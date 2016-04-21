@@ -5,16 +5,16 @@
 # depends: dstat, ruby
 # apt-get install dstat ruby
 # yum install dstat ruby
+# ruby stat.rb &
+# open http://127.0.0.1:8888
+
+# setup in user's crontab:
+# crontab -e
+# @reboot /path/to/stat.rb &
 
 # Copyright (C) Andras Horvath <mail@log69.com>
 # All rights reserved.
 # license: GPLv3+
-
-# usage: open http://127.0.0.1:8888
-
-# setup in user's crontab:
-# crontab -e
-# @reboot stat.rb &
 
 
 $SAFE = 1
