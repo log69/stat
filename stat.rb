@@ -51,9 +51,6 @@ C_color_border	= "b0b0b0" # color of border line in table
 def print_stat
 	res = ""
 
-	# start collecting data from dstat
-	Thread.new { `pgrep dstat || dstat -cmdn --noheaders --output #{C_dstat} 60` }
-
 	# print info
 	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit)</font><br>"
 
@@ -288,6 +285,10 @@ end
 # ------------
 # --- main ---
 # ------------
+# start collecting data from dstat
+Thread.new { `pgrep dstat || dstat -cmdn --noheaders --output #{C_dstat} 60` }
+
+# serve html content
 server = TCPServer.new C_port
 loop do
 	socket = server.accept
