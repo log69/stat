@@ -64,7 +64,7 @@ def print_stat
 		div = x[1]
 		text = x[2]
 		# date value for x axis
-		date = (-lines..-1).to_a.map{|y| "#{y / div} #{x[3]}"}
+		date = (-lines..-1).to_a.map{|y| "#{y / div}#{x[3]}"}
 
 		res << "<h2>#{text}</h2>"
 
