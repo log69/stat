@@ -302,5 +302,4 @@ loop do
 		"Connection: close\r\n\r\n"
 
 	socket.print response
-	socket.close
 end
