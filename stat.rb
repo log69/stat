@@ -64,7 +64,7 @@ def print_stat
 		div = x[1]
 		text = x[2]
 		# date value for x axis
-		date = (-lines+1..0).to_a.map{|y| "#{y / div} #{x[3]}"}
+		date = (-lines..-1).to_a.map{|y| "#{y / div} #{x[3]}"}
 
 		res << "<h2>#{text}</h2>"
 
@@ -99,8 +99,9 @@ def print_stat
 					d_net.push(nn * 8 / 1024 / 1024)
 					# other interface
 					d_net2.push(mm * 8 / 1024 / 1024) if y[14] and y[15]
+
+					i += 1
 				end
-				i += 1
 				break if i >= lines
 			end
 
@@ -124,14 +125,14 @@ def print_stat
 
 			# print stat images
 			res << "<a href='http://127.0.0.1:#{C_port}'>"
-			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-d_cpu.size-1..-1],  d_cpu_max)
-			res << print_chart(C_color_stat1, d_mem.reverse,  date[-d_mem.size-1..-1],  d_mem_max)
-			res << print_chart(C_color_err,   d_disk.reverse, date[-d_disk.size-1..-1], d_disk_min)
-			res << print_chart(C_color_gray3, d_net.reverse,  date[-d_net.size-1..-1],  d_net_min)
+			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-i..-1], d_cpu_max)
+			res << print_chart(C_color_stat1, d_mem.reverse,  date[-i..-1], d_mem_max)
+			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min)
+			res << print_chart(C_color_gray3, d_net.reverse,  date[-i..-1], d_net_min)
 
 			# is there output for another interface too?
 			if d_net2.size > 0
-				res << print_chart(C_color_gray3, d_net2.reverse, date[-d_net2.size-1..-1], d_net_min2)
+				res << print_chart(C_color_gray3, d_net2.reverse, date[-i..-1], d_net_min2)
 			end
 			res << "</a><br><hr>"
 
