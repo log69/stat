@@ -94,11 +94,11 @@ def print_stat
 					mm = y[14].to_f.abs + y[15].to_f.abs if y[14] and y[15]
 					# dstat gives sometimes huge nonreal values for net
 					# set a limit to these values
-					max = 100 * 1024
-					nn = max if nn > max
-					mm = max if mm > max
+					max = 100 * 1024 * 1024 * 1024 / 8
+					nn = 0 if nn > max
+					mm = 0 if mm > max
 					# store it
-					nn -= mm
+					nn += mm
 					d_net.push(nn * 8 / 1024 / 1024)
 					# other interface
 					d_net2.push(mm * 8 / 1024 / 1024) if y[14] and y[15]
