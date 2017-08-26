@@ -307,5 +307,5 @@ loop do
 		"Content-Length: #{response.bytesize}\r\n" +
 		"Connection: close\r\n\r\n"
 
-	socket.print response
+	socket.print response rescue nil
 end
