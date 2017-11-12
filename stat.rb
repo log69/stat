@@ -52,7 +52,7 @@ def print_stat
 	res = ""
 
 	# print info
-	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit) load (15 min)</font><br>"
+	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) load (15 min) net (Mbit)</font><br>"
 
 	[[60, 1, "last hour", "m"], [60 * 24, 60, "last day", "h"], [60 * 24 * 7, 60 * 24, "last week", "d"]].each do |x|
 
