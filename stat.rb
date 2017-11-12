@@ -217,9 +217,9 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 	end
 
 	max = (max and array.max.ceil < max) ? max : array.max.ceil
-	max = 0 if max < 0
+	max = 0 if max <= 0
 	min = array.min
-	min = 0 if min > 0
+	min = 0 if min >= 0
 	diff = max - min
 	diff = 1 if diff == 0
 
