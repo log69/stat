@@ -52,7 +52,7 @@ def print_stat
 	res = ""
 
 	# print info
-	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit)</font><br>"
+	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) net (Mbit) load (15 min)</font><br>"
 
 	[[60, 1, "last hour", "m"], [60 * 24, 60, "last day", "h"], [60 * 24 * 7, 60 * 24, "last week", "d"]].each do |x|
 
@@ -76,6 +76,7 @@ def print_stat
 			d_disk = []
 			d_net  = []
 			d_net2 = []
+			d_load = []
 			i = 0
 			d.reverse.each do |x|
 				# check if the line is data or just part of the dstat header
@@ -88,10 +89,12 @@ def print_stat
 					d_mem.push(y[6].to_f.abs / 1024 / 1024)
 					# select data for disk (MB / s)
 					d_disk.push((y[10].to_f.abs + y[11].to_f.abs) / 1024 / 1024)
+					# select data for load (15 min)
+					d_load.push(y[14].to_f.abs)
 					# select data for net (Mbit / s)
-					nn = y[12].to_f.abs + y[13].to_f.abs
+					nn = y[15].to_f.abs + y[16].to_f.abs
 					mm = 0
-					mm = y[14].to_f.abs + y[15].to_f.abs if y[14] and y[15]
+					mm = y[17].to_f.abs + y[18].to_f.abs if y[17] and y[18]
 					# dstat gives sometimes huge nonreal values for net
 					# set a limit to these values
 					max = 100 * 1024 * 1024 * 1024 / 8
@@ -101,7 +104,7 @@ def print_stat
 					nn += mm
 					d_net.push(nn * 8 / 1024 / 1024)
 					# other interface
-					d_net2.push(mm * 8 / 1024 / 1024) if y[14] and y[15]
+					d_net2.push(mm * 8 / 1024 / 1024) if y[17] and y[18]
 
 					i += 1
 				end
@@ -118,9 +121,12 @@ def print_stat
 			d3 = d2.split("\n")[0].match(/[0-9]+/).to_a.join.to_i / 1024
 			d_mem_max = nil
 			d_mem_max = d3 if d3 > 0
-			# disk and net
+			# disk
 			d_disk_min = nil
 			d_disk_min = 1 if d_disk.max < 1
+			# load
+			d_load_min = nil
+			# net
 			d_net_min = nil
 			d_net_min = 1 if d_net.max < 1
 			d_net_min2 = nil
@@ -131,6 +137,7 @@ def print_stat
 			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-i..-1], d_cpu_max)
 			res << print_chart(C_color_stat1, d_mem.reverse,  date[-i..-1], d_mem_max)
 			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min)
+			res << print_chart(C_color_stat2, d_load.reverse, date[-i..-1], d_load_min)
 			res << print_chart(C_color_gray3, d_net.reverse,  date[-i..-1], d_net_min)
 
 			# is there output for another interface too?
@@ -292,7 +299,7 @@ end
 # --- main ---
 # ------------
 # start collecting data from dstat
-Thread.new { `pgrep dstat || dstat -cmdn --noheaders --output #{C_dstat} 60` }
+Thread.new { `pgrep dstat || dstat -cmdln --noheaders --output #{C_dstat} 60` }
 
 # serve html content
 server = TCPServer.new C_port
