@@ -78,6 +78,12 @@ def print_stat
 			d_net2 = []
 			d_load = []
 			i = 0
+
+			lm = data_len("c")
+			ld = data_len("cm")
+			ll = data_len("cmd")
+			ln = data_len("cmdl")
+
 			d.reverse.each do |x|
 				# check if the line is data or just part of the dstat header
 				# if it start with a number, then it should be data
@@ -85,16 +91,21 @@ def print_stat
 					y = x.split(",")
 					# select data for cpu (%)
 					d_cpu.push((100 - y[2].to_f).abs)
+
 					# select data for mem (MB)
-					d_mem.push(y[6].to_f.abs / 1024 / 1024)
+					d_mem.push(y[lm + 0].to_f.abs / 1024 / 1024)
+
 					# select data for disk (MB / s)
-					d_disk.push((y[10].to_f.abs + y[11].to_f.abs) / 1024 / 1024)
+					d_disk.push((y[ld + 0].to_f.abs + y[ld + 1].to_f.abs) / 1024 / 1024)
+
 					# select data for load (15 min)
-					d_load.push(y[14].to_f.abs)
+					d_load.push(y[ll + 2].to_f.abs)
+
 					# select data for net (Mbit / s)
-					nn = y[15].to_f.abs + y[16].to_f.abs
+					nn = y[ln + 0].to_f.abs + y[ln + 1].to_f.abs
 					mm = 0
-					mm = y[17].to_f.abs + y[18].to_f.abs if y[17] and y[18]
+					mm = y[ln + 2].to_f.abs + y[ln + 3].to_f.abs if y[ln + 2] and y[ln + 3]
+
 					# dstat gives sometimes huge nonreal values for net
 					# set a limit to these values
 					max = 100 * 1024 * 1024 * 1024 / 8
@@ -104,7 +115,7 @@ def print_stat
 					nn += mm
 					d_net.push(nn * 8 / 1024 / 1024)
 					# other interface
-					d_net2.push(mm * 8 / 1024 / 1024) if y[17] and y[18]
+					d_net2.push(mm * 8 / 1024 / 1024) if y[ln + 2] and y[ln + 3]
 
 					i += 1
 				end
@@ -292,6 +303,12 @@ def print_end
 	"</body></html>"
 end
 
+def data_len(param)
+	ff = "/tmp/dstat_test_#{rand 10**30}"
+	n = `dstat --output "#{ff}" -#{param} 1 1; cat "#{ff}"`.split("\n").last.split(",").size
+	File.delete ff
+	return n
+end
 
 
 
