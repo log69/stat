@@ -144,13 +144,13 @@ def print_stat
 			res << "<a href='/'>"
 			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-i..-1], d_cpu_max, nil, 0, " % CPU")
 			res << print_chart(C_color_stat1, d_mem.reverse,  date[-i..-1], d_mem_max, nil, 0, " MB memory")
-			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min, nil, 0, " MB/s disk load")
-			res << print_chart(C_color_stat2, d_load.reverse, date[-i..-1], d_load_min, nil, 0, " load for 15 min")
-			res << print_chart(C_color_gray3, d_net.reverse,  date[-i..-1], d_net_min, nil, 0, " Mbit/s net load")
+			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min, nil, 0, " MB/s disk")
+			res << print_chart(C_color_stat2, d_load.reverse, date[-i..-1], d_load_min, nil, 0, " / 15 min load")
+			res << print_chart(C_color_gray3, d_net.reverse,  date[-i..-1], d_net_min, nil, 0, " Mbit/s total net")
 
 			# is there output for another interface too?
 			if d_net2.size > 0
-				res << print_chart(C_color_gray3, d_net2.reverse, date[-i..-1], d_net_min2, nil, 0, " Mbit/s net load")
+				res << print_chart(C_color_gray3, d_net2.reverse, date[-i..-1], d_net_min2, nil, 0, " Mbit/s internet")
 			end
 			res << "</a><br><hr>"
 
@@ -314,7 +314,7 @@ end
 # ------------
 # start collecting data from dstat
 # if separate net stat is needed for total and single interface, use this:
-# dstat -cmdln -N total,eth1
+# dstat -cmdln -N total,p4p1
 Thread.new { `pgrep dstat || dstat -cmdln --noheaders --output #{C_dstat} 60` }
 
 # serve html content
