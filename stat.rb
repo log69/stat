@@ -316,6 +316,8 @@ end
 # --- main ---
 # ------------
 # start collecting data from dstat
+# if separate net stat is needed for total and single interface, use this:
+# dstat -cmdln -N total,eth1
 Thread.new { `pgrep dstat || dstat -cmdln --noheaders --output #{C_dstat} 60` }
 
 # serve html content
