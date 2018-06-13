@@ -51,9 +51,6 @@ C_color_border	= "b0b0b0" # color of border line in table
 def print_stat
 	res = ""
 
-	# print info
-	res << "<font color='##{C_color_stat1}'>server cpu (%) mem (MB) disk (MB/s) load (15 min) net (Mbit)</font><br>"
-
 	[[60, 1, "last hour", "m"], [60 * 24, 60, "last day", "h"], [60 * 24 * 7, 60 * 24, "last week", "d"]].each do |x|
 
 		# determine the lines of data to use for the chosen time interval
@@ -145,15 +142,15 @@ def print_stat
 
 			# print stat images
 			res << "<a href='/'>"
-			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-i..-1], d_cpu_max)
-			res << print_chart(C_color_stat1, d_mem.reverse,  date[-i..-1], d_mem_max)
-			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min)
-			res << print_chart(C_color_stat2, d_load.reverse, date[-i..-1], d_load_min)
-			res << print_chart(C_color_gray3, d_net.reverse,  date[-i..-1], d_net_min)
+			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-i..-1], d_cpu_max, nil, 0, " % CPU")
+			res << print_chart(C_color_stat1, d_mem.reverse,  date[-i..-1], d_mem_max, nil, 0, " MB memory")
+			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min, nil, 0, " MB/s disk load")
+			res << print_chart(C_color_stat2, d_load.reverse, date[-i..-1], d_load_min, nil, 0, " load for 15 min")
+			res << print_chart(C_color_gray3, d_net.reverse,  date[-i..-1], d_net_min, nil, 0, " Mbit/s net load")
 
 			# is there output for another interface too?
 			if d_net2.size > 0
-				res << print_chart(C_color_gray3, d_net2.reverse, date[-i..-1], d_net_min2)
+				res << print_chart(C_color_gray3, d_net2.reverse, date[-i..-1], d_net_min2, nil, 0, " Mbit/s net load")
 			end
 			res << "</a><br><hr>"
 
@@ -168,7 +165,7 @@ end
 # --- svg chart ---
 # -----------------
 # print an svg chart from an array of numbers
-def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id = 0)
+def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id = 0, textinfo = "")
 	res = ""
 
 	# check array values
@@ -271,7 +268,7 @@ def print_chart(color, array, array_date = nil, max = nil, numformat = nil, id =
 	y2 = (max - min) * h2 / diff
 	y  = h + m1 - y2 - m2
 	res << "<line style='#{st} stroke: ##{C_color_blk};' x1='#{w + m1}' y1='#{y}' x2='#{w + m1 + mt}' y2='#{y}'></line>"
-	t = max
+	t = max.to_s + textinfo
 	res << "<text style='font-size: #{tspace/2}px;' x='#{w + m1 + mt*1.5}' y='#{y}' fill='##{C_color_blk}' transform='rotate(0 0,0)'>#{t}</text>"
 	y2 = (min - min) * h2 / diff
 	y  = h + m1 - y2 - m2
