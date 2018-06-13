@@ -1,6 +1,6 @@
 Server load statistics for Linux systems with graphical output in a browser
 
-info: generate server statistics on a html page using a dstat output
+info: generate server statistics as an HTML page with SVG using the output of dstat
 
 Copyright (C) Andras Horvath <mail@log69.com>
 All rights reserved.
