@@ -144,7 +144,7 @@ def print_stat
 			d_net_min2 = 1 if d_net2.max.to_f < 1
 
 			# print stat images
-			res << "<a href='http://127.0.0.1:#{C_port}'>"
+			res << "<a href='/'>"
 			res << print_chart(C_color_blk,   d_cpu.reverse,  date[-i..-1], d_cpu_max)
 			res << print_chart(C_color_stat1, d_mem.reverse,  date[-i..-1], d_mem_max)
 			res << print_chart(C_color_err,   d_disk.reverse, date[-i..-1], d_disk_min)
