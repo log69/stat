@@ -50,8 +50,11 @@ C_color_border	= "b0b0b0" # color of border line in table
 # print a system stat
 def print_stat
 	res = ""
+	flag_hr = nil
 
 	[[60, 1, "last hour", "m"], [60 * 24, 60, "last day", "h"], [60 * 24 * 7, 60 * 24, "last week", "d"]].each do |x|
+	
+		res << "<hr>"  if flag_hr ; flag_hr = 1
 
 		# determine the lines of data to use for the chosen time interval
 		lines = x[0]
@@ -152,7 +155,7 @@ def print_stat
 			if d_net2.size > 0
 				res << print_chart(C_color_gray3, d_net2.reverse, date[-i..-1], d_net_min2, nil, 0, " Mbit/s internet")
 			end
-			res << "</a><br><hr>"
+			res << "</a><br>"
 
 		end
 	end
